@@ -11,8 +11,7 @@ LABELS = ["sadness","anxiety","emotional_fatigue","fear","joy","neutral"]
 
 MODEL_PATH = "gensenti_model"
 
-# ---------------- SESSION ----------------
-
+# SESSION STORAGE
 if "users" not in st.session_state:
     st.session_state.users = {}
 
@@ -22,8 +21,7 @@ if "logged_in" not in st.session_state:
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# ---------------- LOAD MODEL ----------------
-
+# LOAD MODEL
 @st.cache_resource
 def load_model():
     tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
@@ -33,43 +31,17 @@ def load_model():
 
 tokenizer, model = load_model()
 
-# ---------------- ADVICE ----------------
-
+# ADVICE SYSTEM
 advice = {
-"sadness":[
-"Consider talking to someone you trust.",
-"Take time to rest and reflect.",
-"A short walk may help clear your mind."
-],
-"anxiety":[
-"Try slow breathing for a minute.",
-"Focus only on what you can control.",
-"Take a short break from screens."
-],
-"emotional_fatigue":[
-"Rest is important for recovery.",
-"Reduce unnecessary tasks today.",
-"Take a few moments to recharge."
-],
-"fear":[
-"Pause and assess the situation calmly.",
-"Focus on facts instead of assumptions.",
-"You have overcome challenges before."
-],
-"joy":[
-"Share your positivity with others.",
-"Celebrate this moment.",
-"Let this energy motivate you."
-],
-"neutral":[
-"Your emotional state appears balanced.",
-"Maintain your steady mindset.",
-"Use this clarity productively."
-]
+"sadness":["Talk to someone you trust","Take time to rest","Go for a short walk"],
+"anxiety":["Try slow breathing","Focus on what you control","Take a break"],
+"emotional_fatigue":["Rest and recharge","Reduce tasks","Hydrate and relax"],
+"fear":["Pause and assess calmly","Focus on facts","You can overcome this"],
+"joy":["Share positivity","Celebrate this moment","Stay grateful"],
+"neutral":["Your emotions look balanced","Maintain your routine","Stay mindful"]
 }
 
-# ---------------- LOGIN PAGE ----------------
-
+# LOGIN PAGE
 if not st.session_state.logged_in:
 
     st.title("🧠 GenSenti")
@@ -106,8 +78,7 @@ if not st.session_state.logged_in:
             else:
                 st.error("Invalid login")
 
-# ---------------- MAIN DASHBOARD ----------------
-
+# MAIN APP
 else:
 
     st.sidebar.title("GenSenti")
@@ -121,23 +92,17 @@ else:
         st.session_state.logged_in=False
         st.rerun()
 
-# ---------------- HOME ----------------
-
     if page=="Home":
 
         st.title("✨ GenSenti Dashboard")
 
         st.write(
-        "GenSenti is an AI emotion analysis system that interprets human emotions "
-        "from text including modern Gen-Z slang expressions."
+        "GenSenti analyzes emotions in text including modern Gen-Z slang and expressions."
         )
 
         st.warning(
-        "⚠️ Disclaimer: GenSenti is for awareness and educational purposes only. "
-        "It does not provide medical or psychological diagnosis."
+        "⚠️ Disclaimer: GenSenti is for educational awareness only."
         )
-
-# ---------------- ANALYZER ----------------
 
     if page=="GenSenti Analyzer":
 
@@ -147,13 +112,7 @@ else:
 
         if st.button("Analyze"):
 
-            inputs = tokenizer(
-                text,
-                return_tensors="pt",
-                truncation=True,
-                padding=True,
-                max_length=64
-            )
+            inputs = tokenizer(text,return_tensors="pt",truncation=True,padding=True,max_length=64)
 
             with torch.no_grad():
                 logits = model(**inputs).logits
@@ -169,7 +128,7 @@ else:
 
             emotion=max(scores,key=scores.get)
 
-            explanation=f"The text primarily expresses **{emotion}** emotion."
+            explanation=f"The sentence mainly expresses **{emotion}**."
 
             suggestion=random.choice(advice[emotion])
 
@@ -182,8 +141,6 @@ else:
                 "time":time.strftime("%Y-%m-%d %H:%M:%S")
             })
 
-# ---------------- HISTORY ----------------
-
     if page=="History":
 
         st.title("📜 Analysis History")
@@ -194,8 +151,6 @@ else:
         else:
             df=pd.DataFrame(st.session_state.history)
             st.dataframe(df,use_container_width=True)
-
-# ---------------- REPORT ----------------
 
     if page=="Reports":
 
