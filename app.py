@@ -1,241 +1,151 @@
 import streamlit as st
 import torch
 import pandas as pd
-import sqlite3
 import time
-import os
 import random
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-# ---------------- PERFORMANCE ----------------
-torch.set_num_threads(1)
+st.set_page_config(page_title="GenSenti", page_icon="🧠", layout="wide")
 
-# ---------------- CONFIG ----------------
-st.set_page_config(
-    page_title="GenSenti",
-    page_icon="🧠",
-    layout="wide"
-)
+LABELS = ["sadness","anxiety","emotional_fatigue","fear","joy","neutral"]
 
-LABELS = ["sadness", "anxiety", "emotional_fatigue", "fear", "joy", "neutral"]
+MODEL_PATH = "gensenti_model"
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "../gensenti_model")
-DB_PATH = os.path.join(BASE_DIR, "gensenti.db")
+# ---------------- SESSION ----------------
 
-# ---------------- CUSTOM UI THEME ----------------
-st.markdown("""
-<style>
+if "users" not in st.session_state:
+    st.session_state.users = {}
 
-body {
-    margin:0;
-    padding:0;
-    background: linear-gradient(-45deg,#000000,#330033,#800080,#ff00cc);
-    background-size:400% 400%;
-    animation:gradientBG 12s ease infinite;
-    color:white;
-}
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-@keyframes gradientBG {
-0%{background-position:0% 50%;}
-50%{background-position:100% 50%;}
-100%{background-position:0% 50%;}
-}
+if "history" not in st.session_state:
+    st.session_state.history = []
 
-h1,h2,h3{
-color:#ff66cc;
-text-align:center;
-}
+# ---------------- LOAD MODEL ----------------
 
-.stButton>button{
-background:linear-gradient(90deg,#ff00cc,#8000ff);
-color:white;
-border-radius:25px;
-height:45px;
-width:180px;
-font-weight:bold;
-border:none;
-}
-
-.stTextArea textarea{
-background-color:#1a1a1a !important;
-color:white !important;
-border-radius:12px;
-border:1px solid #ff00cc;
-}
-
-.stProgress > div > div > div > div{
-background:linear-gradient(90deg,#ff00cc,#8000ff);
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-# ---------------- DATABASE ----------------
-conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-c = conn.cursor()
-
-c.execute("""
-CREATE TABLE IF NOT EXISTS history(
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-text TEXT,
-timestamp TEXT,
-sadness REAL,
-anxiety REAL,
-emotional_fatigue REAL,
-fear REAL,
-joy REAL,
-neutral REAL,
-interpretation TEXT,
-suggestion TEXT
-)
-""")
-
-conn.commit()
-
-# ---------------- MODEL LOAD ----------------
-@st.cache_resource(show_spinner=False)
+@st.cache_resource
 def load_model():
-
-    tokenizer = AutoTokenizer.from_pretrained(
-        MODEL_PATH,
-        local_files_only=True
-    )
-
-    model = AutoModelForSequenceClassification.from_pretrained(
-        MODEL_PATH,
-        local_files_only=True,
-        low_cpu_mem_usage=True
-    )
-
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+    model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
     model.eval()
-
     return tokenizer, model
 
 tokenizer, model = load_model()
 
-# ---------------- FUNCTIONS ----------------
-def generate_explanation(text, scores):
+# ---------------- ADVICE ----------------
 
-    primary = max(scores, key=scores.get)
-    intensity = scores[primary]
+advice = {
+"sadness":[
+"Consider talking to someone you trust.",
+"Take time to rest and reflect.",
+"A short walk may help clear your mind."
+],
+"anxiety":[
+"Try slow breathing for a minute.",
+"Focus only on what you can control.",
+"Take a short break from screens."
+],
+"emotional_fatigue":[
+"Rest is important for recovery.",
+"Reduce unnecessary tasks today.",
+"Take a few moments to recharge."
+],
+"fear":[
+"Pause and assess the situation calmly.",
+"Focus on facts instead of assumptions.",
+"You have overcome challenges before."
+],
+"joy":[
+"Share your positivity with others.",
+"Celebrate this moment.",
+"Let this energy motivate you."
+],
+"neutral":[
+"Your emotional state appears balanced.",
+"Maintain your steady mindset.",
+"Use this clarity productively."
+]
+}
 
-    if intensity > 0.75:
-        level = "high"
-    elif intensity > 0.40:
-        level = "moderate"
-    else:
-        level = "mild"
+# ---------------- LOGIN PAGE ----------------
 
-    return f"The text mainly expresses {primary} with {level} intensity."
-
-
-def generate_advice(scores):
-
-    primary = max(scores, key=scores.get)
-
-    advice_bank = {
-
-        "sadness":[
-        "Consider talking to someone you trust.",
-        "Writing your thoughts in a journal can help.",
-        "Take a short walk to refresh your mind.",
-        "Allow yourself time to process emotions."
-        ],
-
-        "anxiety":[
-        "Try slow breathing for a few minutes.",
-        "Focus on what you can control now.",
-        "Break tasks into smaller steps.",
-        "Step away from screens briefly."
-        ],
-
-        "emotional_fatigue":[
-        "Consider taking a short break.",
-        "Rest is productive too.",
-        "Step away from responsibilities briefly.",
-        "Protect your mental energy."
-        ],
-
-        "fear":[
-        "Pause and assess the situation calmly.",
-        "Focus on facts rather than assumptions.",
-        "Practice grounding techniques.",
-        "Slow breathing may help."
-        ],
-
-        "joy":[
-        "Keep spreading positivity.",
-        "Celebrate this moment.",
-        "Share your happiness with others.",
-        "Express gratitude."
-        ],
-
-        "neutral":[
-        "Your emotional state appears balanced.",
-        "Maintain healthy routines.",
-        "Stay mindful during the day.",
-        "Reflect on your goals briefly."
-        ]
-    }
-
-    return random.choice(advice_bank[primary])
-
-
-def save_to_db(text,timestamp,scores,interpretation,suggestion):
-
-    c.execute("""
-    INSERT INTO history
-    (text,timestamp,sadness,anxiety,emotional_fatigue,fear,joy,neutral,interpretation,suggestion)
-    VALUES (?,?,?,?,?,?,?,?,?,?)
-    """,(text,timestamp,
-         scores["sadness"],
-         scores["anxiety"],
-         scores["emotional_fatigue"],
-         scores["fear"],
-         scores["joy"],
-         scores["neutral"],
-         interpretation,
-         suggestion))
-
-    conn.commit()
-
-# ---------------- SIDEBAR ----------------
-st.sidebar.title("🧠 GenSenti Navigation")
-page = st.sidebar.radio("",["Home","GenSenti","History","Reports"])
-
-# ---------------- HOME ----------------
-if page=="Home":
+if not st.session_state.logged_in:
 
     st.title("🧠 GenSenti")
-    st.subheader("Gen-Z Emotion Intelligence System")
+    st.subheader("AI Emotion Intelligence Platform")
 
-    st.write("GenSenti analyzes emotions in text using a transformer-based model enhanced with Gen-Z slang and emoji context.")
+    option = st.radio("Account",["Login","Register"])
 
-    st.write("The system provides emotional interpretation, supportive suggestions, and tracks emotional history for awareness.")
+    if option=="Register":
 
-    st.markdown("""
-    <div style='background-color:#330033;padding:20px;border-radius:10px;border:2px solid #ff00cc'>
-    
-    ⚠️ <b>Disclaimer</b>  
-    GenSenti is designed for educational and awareness purposes only.  
-    It does <b>not</b> provide medical or psychological diagnosis.
+        user = st.text_input("Username")
+        email = st.text_input("Email")
+        password = st.text_input("Password",type="password")
 
-    </div>
-    """, unsafe_allow_html=True)
+        if st.button("Create Account"):
+
+            if user in st.session_state.users:
+                st.error("User already exists")
+
+            else:
+                st.session_state.users[user]={"email":email,"password":password}
+                st.success("Account created successfully")
+
+    if option=="Login":
+
+        user = st.text_input("Username")
+        password = st.text_input("Password",type="password")
+
+        if st.button("Login"):
+
+            if user in st.session_state.users and st.session_state.users[user]["password"]==password:
+                st.session_state.logged_in=True
+                st.success("Login successful")
+                st.rerun()
+            else:
+                st.error("Invalid login")
+
+# ---------------- MAIN DASHBOARD ----------------
+
+else:
+
+    st.sidebar.title("GenSenti")
+
+    page = st.sidebar.radio(
+        "Navigation",
+        ["Home","GenSenti Analyzer","History","Reports"]
+    )
+
+    if st.sidebar.button("Logout"):
+        st.session_state.logged_in=False
+        st.rerun()
+
+# ---------------- HOME ----------------
+
+    if page=="Home":
+
+        st.title("✨ GenSenti Dashboard")
+
+        st.write(
+        "GenSenti is an AI emotion analysis system that interprets human emotions "
+        "from text including modern Gen-Z slang expressions."
+        )
+
+        st.warning(
+        "⚠️ Disclaimer: GenSenti is for awareness and educational purposes only. "
+        "It does not provide medical or psychological diagnosis."
+        )
 
 # ---------------- ANALYZER ----------------
-elif page=="GenSenti":
 
-    st.title("💬 GenSenti Analyzer")
+    if page=="GenSenti Analyzer":
 
-    text = st.text_area("Enter your text")
+        st.title("💬 Emotion Analyzer")
 
-    if st.button("Analyze"):
+        text = st.text_area("Enter a sentence")
 
-        if text.strip():
-
-            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        if st.button("Analyze"):
 
             inputs = tokenizer(
                 text,
@@ -245,72 +155,64 @@ elif page=="GenSenti":
                 max_length=64
             )
 
-            with torch.inference_mode():
-
+            with torch.no_grad():
                 logits = model(**inputs).logits
                 probs = torch.sigmoid(logits)[0].tolist()
 
             scores = dict(zip(LABELS,probs))
 
-            st.subheader("📊 Emotional Confidence Levels")
+            st.subheader("Emotion Confidence")
 
-            for emotion,value in scores.items():
+            for e,v in scores.items():
+                st.write(f"{e} {round(v*100,2)}%")
+                st.progress(v)
 
-                st.write(f"{emotion.capitalize()} ({round(value*100,2)}%)")
-                st.progress(float(value))
+            emotion=max(scores,key=scores.get)
 
-            interpretation = generate_explanation(text,scores)
-            suggestion = generate_advice(scores)
+            explanation=f"The text primarily expresses **{emotion}** emotion."
 
-            st.subheader("🧠 Interpretation")
-            st.info(interpretation)
+            suggestion=random.choice(advice[emotion])
 
-            st.subheader("💡 Suggestion")
+            st.info(explanation)
             st.success(suggestion)
 
-            save_to_db(text,timestamp,scores,interpretation,suggestion)
-
-        else:
-            st.warning("Please enter text.")
+            st.session_state.history.append({
+                "text":text,
+                "emotion":emotion,
+                "time":time.strftime("%Y-%m-%d %H:%M:%S")
+            })
 
 # ---------------- HISTORY ----------------
-elif page=="History":
 
-    st.title("📜 Emotional History")
+    if page=="History":
 
-    df = pd.read_sql_query("SELECT * FROM history ORDER BY id DESC",conn)
+        st.title("📜 Analysis History")
 
-    if not df.empty:
-        st.dataframe(df,use_container_width=True)
-    else:
-        st.info("No history yet.")
+        if len(st.session_state.history)==0:
+            st.info("No analysis yet")
 
-# ---------------- REPORTS ----------------
-elif page=="Reports":
+        else:
+            df=pd.DataFrame(st.session_state.history)
+            st.dataframe(df,use_container_width=True)
 
-    st.title("📥 Generate Report")
+# ---------------- REPORT ----------------
 
-    df = pd.read_sql_query("SELECT * FROM history",conn)
+    if page=="Reports":
 
-    if not df.empty:
+        st.title("📥 Download Report")
 
-        st.dataframe(df,use_container_width=True)
+        if len(st.session_state.history)==0:
+            st.info("No data available")
 
-        csv = df.to_csv(index=False).encode("utf-8")
+        else:
 
-        st.download_button(
-        "Download CSV Report",
-        csv,
-        "gensenti_report.csv",
-        "text/csv")
+            df=pd.DataFrame(st.session_state.history)
 
-    else:
-        st.info("No data available.")
+            csv=df.to_csv(index=False).encode("utf-8")
 
-# ---------------- DISCLAIMER ----------------
-st.markdown("""
----
-⚠️ **Disclaimer**  
-GenSenti is intended for research and awareness purposes only.  
-It does **not provide medical or psychological diagnosis**.
-""")
+            st.download_button(
+                "Download CSV Report",
+                csv,
+                "gensenti_report.csv",
+                "text/csv"
+            )
