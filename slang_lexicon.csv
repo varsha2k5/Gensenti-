@@ -1,0 +1,61 @@
+word,emotion,weight
+cooked,anxiety,0.40
+overthinking,anxiety,0.45
+spiraling,anxiety,0.45
+stressed,anxiety,0.50
+panic,anxiety,0.55
+panicking,anxiety,0.55
+freaking out,anxiety,0.50
+losing it,anxiety,0.45
+not okay,anxiety,0.40
+cant deal,anxiety,0.45
+
+burnt out,emotional_fatigue,0.50
+burnout,emotional_fatigue,0.50
+exhausted,emotional_fatigue,0.45
+drained,emotional_fatigue,0.45
+so done,emotional_fatigue,0.50
+done fr,emotional_fatigue,0.50
+cant anymore,emotional_fatigue,0.55
+tired of this,emotional_fatigue,0.50
+mentally tired,emotional_fatigue,0.55
+ugh,emotional_fatigue,0.35
+
+crying,sadness,0.45
+in my feels,sadness,0.40
+down bad,sadness,0.45
+lowkey sad,sadness,0.40
+heartbroken,sadness,0.55
+hurts,sadness,0.50
+miss them,sadness,0.45
+feels empty,sadness,0.55
+depressed,sadness,0.60
+dead inside,sadness,0.60
+
+scared,fear,0.50
+terrified,fear,0.60
+this aint safe,fear,0.50
+shook,fear,0.40
+paranoid,fear,0.55
+nervous af,fear,0.45
+im scared,fear,0.55
+what if,fear,0.40
+sketchy,fear,0.35
+this is bad,fear,0.45
+
+slay,joy,0.40
+ate that,joy,0.45
+big win,joy,0.50
+we up,joy,0.45
+lets gooo,joy,0.50
+vibing,joy,0.40
+feeling good,joy,0.50
+so happy,joy,0.55
+living my best life,joy,0.60
+that made my day,joy,0.60
+
+idk,neutral,0.10
+meh,neutral,0.15
+whatever,neutral,0.15
+it is what it is,neutral,0.20
+just saying,neutral,0.10
