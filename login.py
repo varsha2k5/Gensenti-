@@ -1,10 +1,9 @@
 import streamlit as st
 import sqlite3
-import subprocess
 
 # ---------------- DATABASE ----------------
 
-conn = sqlite3.connect("src/gensenti.db", check_same_thread=False)
+conn = sqlite3.connect("gensenti.db", check_same_thread=False)
 cursor = conn.cursor()
 
 cursor.execute("""
@@ -18,7 +17,7 @@ password TEXT
 
 conn.commit()
 
-# ---------------- UI ----------------
+# ---------------- PAGE CONFIG ----------------
 
 st.set_page_config(page_title="GenSenti Login", page_icon="🧠")
 
@@ -30,8 +29,6 @@ menu = st.radio("Select Option", ["Login", "Register"])
 # ---------------- LOGIN ----------------
 
 if menu == "Login":
-
-    st.markdown("### Login")
 
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
@@ -46,21 +43,15 @@ if menu == "Login":
         user = cursor.fetchone()
 
         if user:
-            st.success("Login Successful")
-
-            st.info("Opening GenSenti Dashboard...")
-
-            # Launch main app
-            subprocess.Popen(["streamlit", "run", "src/app.py"])
+            st.success("Login Successful ✅")
+            st.info("You can now open the GenSenti dashboard.")
 
         else:
-            st.error("Invalid credentials")
+            st.error("Invalid username or password")
 
 # ---------------- REGISTER ----------------
 
 if menu == "Register":
-
-    st.markdown("### Create Account")
 
     new_user = st.text_input("Username")
     new_email = st.text_input("Email")
@@ -75,5 +66,5 @@ if menu == "Register":
 
         conn.commit()
 
-        st.success("Account Created Successfully")
+        st.success("Account Created Successfully 🎉")
         st.info("You can now login.")
